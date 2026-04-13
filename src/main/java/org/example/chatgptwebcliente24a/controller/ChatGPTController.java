@@ -3,9 +3,7 @@ package org.example.chatgptwebcliente24a.controller;
 import org.example.chatgptwebcliente24a.dto.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.ArrayList;
@@ -17,13 +15,13 @@ import java.util.Map;
 public class ChatGPTController {
 
 
-    @Value("${openai.api.key}")
+    @Value("${groq.api.key}")
     private String openapikey;
 
     private final WebClient webClient;
 
     public ChatGPTController(WebClient.Builder webClientBuilder) {
-        this.webClient = webClientBuilder.baseUrl("https://api.openai.com/v1/chat/completions").build();
+        this.webClient = webClientBuilder.baseUrl("https://api.groq.com/openai/v1/chat/completions").build();
     }
 
     @GetMapping("/chad")
@@ -39,17 +37,17 @@ public class ChatGPTController {
 
     @GetMapping("/chat")
     public Map<String, Object> chatWithGPT(@RequestParam String message) {
-        ChatRequestDTO chatRequest = new ChatRequestDTO(); //ChatRequest objekt har jeg dannet med https://www.jsonschema2pojo.or g/ værktøj
-        chatRequest.setModel("gpt-3.5-turbo"); //vælg rigtig model. se powerpoint
-        List<Message> lstMessages = new ArrayList<>(); //en liste af messages med roller
+        ChatRequestDTO chatRequest = new ChatRequestDTO();
+        chatRequest.setModel("llama-3.3-70b-versatile");
+        List<Message> lstMessages = new ArrayList<>();
         lstMessages.add(new Message("system", "You are a helpful assistant."));
         lstMessages.add(new Message("user", "Where is " + message));
         chatRequest.setMessages(lstMessages);
-        chatRequest.setN(3); //n er antal svar fra chatgpt
-        chatRequest.setTemperature(1); //jo højere jo mere fantasifuldt svar (se powerpoint)
-        chatRequest.setMaxTokens(30); //længde af svar
-        chatRequest.setStream(false); //stream = true, er for viderekomne, der kommer flere svar asynkront
-        chatRequest.setPresencePenalty(1); //noget med ikke at gentage sig. se powerpoint
+        chatRequest.setN(3);
+        chatRequest.setTemperature(1);
+        chatRequest.setMaxTokens(30);
+        chatRequest.setStream(false);
+        chatRequest.setPresencePenalty(1);
 
         ChatResponseDTO response = webClient.post()
                 .contentType(MediaType.APPLICATION_JSON)
@@ -69,10 +67,39 @@ public class ChatGPTController {
         return map;
     }
 
+    @PostMapping("/api/chat")
+    @ResponseBody
+    public Map<String, String> chat(@RequestBody Map<String, String> body) {
+        String message = body.get("message");
+
+        ChatRequestDTO chatRequest = new ChatRequestDTO();
+        chatRequest.setModel("llama-3.3-70b-versatile");
+        List<Message> lstMessages = new ArrayList<>();
+        lstMessages.add(new Message("system", "You are a helpful assistant."));
+        lstMessages.add(new Message("user", message));
+        chatRequest.setMessages(lstMessages);
+        chatRequest.setMaxTokens(500);
+
+        ChatResponseDTO response = webClient.post()
+                .contentType(MediaType.APPLICATION_JSON)
+                .headers(h -> h.setBearerAuth(openapikey))
+                .bodyValue(chatRequest)
+                .retrieve()
+                .onStatus(status -> status.isError(), clientResponse ->
+                        clientResponse.bodyToMono(String.class).map(errorBody -> {
+                            System.err.println("Groq fejl: " + errorBody);
+                            return new RuntimeException("Groq fejl: " + errorBody);
+                        })
+                )
+                .bodyToMono(ChatResponseDTO.class)
+                .block();
+
+        String reply = response.getChoices().get(0).getMessage().getContent();
+        Map<String, String> result = new HashMap<>();
+        result.put("reply", reply);
+        return result;
+    }
+
 
 
 }
-
-
-
-

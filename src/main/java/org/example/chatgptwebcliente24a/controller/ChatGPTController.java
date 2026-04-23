@@ -24,48 +24,6 @@ public class ChatGPTController {
         this.webClient = webClientBuilder.baseUrl("https://api.groq.com/openai/v1/chat/completions").build();
     }
 
-    @GetMapping("/chad")
-    public String chatTest(@RequestParam String message) {
-        return message;
-    }
-
-    @GetMapping("/key")
-    public String getKey() {
-        return openapikey;
-    }
-
-
-    @GetMapping("/chat")
-    public Map<String, Object> chatWithGPT(@RequestParam String message) {
-        ChatRequestDTO chatRequest = new ChatRequestDTO();
-        chatRequest.setModel("llama-3.3-70b-versatile");
-        List<Message> lstMessages = new ArrayList<>();
-        lstMessages.add(new Message("system", "You are a helpful assistant."));
-        lstMessages.add(new Message("user", "Where is " + message));
-        chatRequest.setMessages(lstMessages);
-        chatRequest.setN(3);
-        chatRequest.setTemperature(1);
-        chatRequest.setMaxTokens(30);
-        chatRequest.setStream(false);
-        chatRequest.setPresencePenalty(1);
-
-        ChatResponseDTO response = webClient.post()
-                .contentType(MediaType.APPLICATION_JSON)
-                .headers(h -> h.setBearerAuth(openapikey))
-                .bodyValue(chatRequest)
-                .retrieve()
-                .bodyToMono(ChatResponseDTO.class)
-                .block();
-
-        List<Choice> lst = response.getChoices();
-        Usage usg = response.getUsage();
-
-        Map<String, Object> map = new HashMap<>();
-        map.put("Usage", usg);
-        map.put("Choices", lst);
-
-        return map;
-    }
 
     @PostMapping("/api/chat")
     @ResponseBody
